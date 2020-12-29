@@ -1,3 +1,4 @@
+import { IBus } from "./cqrs";
 import { ResourceMap } from "./data/types";
 export type { ResourceMap };
 
@@ -9,6 +10,7 @@ export type Repository<T> = {
 };
 
 export type AppContext = {
+    bus: IBus;
     repository<TResource extends Extract<keyof ResourceMap, string>>(
         resource: TResource
     ): Repository<ResourceMap[TResource]>;

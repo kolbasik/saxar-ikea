@@ -3,10 +3,14 @@ import { v4 as uuid } from "uuid";
 import path from "path";
 import fs from "fs";
 
-export const initializeFromDir = (dirPath: string, app: AppContext): void => {
+export const initializeFromDir = async (dirPath: string, app: AppContext): Promise<void> => {
     if (!fs.existsSync(dirPath)) {
         throw new Error(`Unable to load data from the ${dirPath}`);
     }
+
+    const products = app.repository("product");
+    const articles = app.repository("article");
+
     try {
         const data = JSON.parse(fs.readFileSync(path.resolve(dirPath, "inventory.json"), "utf-8")) as {
             inventory: {
@@ -16,12 +20,11 @@ export const initializeFromDir = (dirPath: string, app: AppContext): void => {
             }[];
         };
 
-        const table = app.repository("article");
         for (const article of data.inventory) {
-            table.set(article.art_id, {
+            await articles.set(article.art_id, {
                 article_id: article.art_id,
                 name: article.name,
-                stock: +article.stock
+                stock: +article.stock,
             });
         }
     } catch (error) {
@@ -38,10 +41,9 @@ export const initializeFromDir = (dirPath: string, app: AppContext): void => {
             }[];
         };
 
-        const table = app.repository("product");
         for (const product of data.products) {
             const product_id = uuid();
-            table.set(product_id, {
+            await products.set(product_id, {
                 product_id,
                 name: product.name,
                 price: { value: 10_000, currency: "EUR" },
@@ -51,7 +53,7 @@ export const initializeFromDir = (dirPath: string, app: AppContext): void => {
                     amount_of: +it.amount_of
                 }))
             });
-        }
+                    }
     } catch (error) {
         throw new Error(`Unable to load products. ${error}`);
     }
