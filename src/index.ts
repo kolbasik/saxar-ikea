@@ -1,3 +1,5 @@
+import express from "express";
+import morgan from "morgan";
 import { AppContext, Repository, ResourceMap } from "./context";
 import { DynamoDB, DynamoTable } from "./data/database";
 import { NodeBus, ConsoleBusDecorator } from "./cqrs";
@@ -33,28 +35,39 @@ bus.consume(GetAllAvailableProducts, createGetAllAvailableProductsHandler(app));
 bus.consume(SellProduct, createSellProductHandler(app));
 bus.consume(ProductSold, createAdjustInventoryHandler(app));
 
-initializeFromDir("./specifications", app)
-    .then(async () => {
-        console.group("Initial data");
-        console.dir(dynamodb, { depth: 4 });
-        console.groupEnd();
+const main = async () => {
+    const IS_DEVELOPMENT = process.env.NODE_ENV !== "production";
+    const PORT = +(process.env.PORT || 3000);
 
-        console.group("Recalculate availability...");
+    if (IS_DEVELOPMENT) {
+        await initializeFromDir("./specifications", app);
         app.bus.tell(new RecalculateAllProductsAvailability());
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-        console.dir(dynamodb, { depth: 4 });
-        console.groupEnd();
+    }
 
-        console.group("Get all available products...");
-        const availableProducts = await app.bus.ask(new GetAllAvailableProducts());
-        console.dir(availableProducts);
-        console.groupEnd();
-
-        console.group("Sell one any first product...");
-        app.bus.tell(new SellProduct(availableProducts[0].product_id, 2));
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-        console.dir(dynamodb, { depth: 4 });
-        console.groupEnd();
-        return;
-    })
-    .catch((e) => e);
+    const web = express();
+    web.use(express.json()); // eslint-disable-line import/no-named-as-default-member
+    web.use(express.urlencoded({ extended: true })); // eslint-disable-line import/no-named-as-default-member
+    web.use(morgan(IS_DEVELOPMENT ? "dev" : "combined"));
+    web.get("/api/v1/articles", async (_, res) => {
+        res.json(await app.repository("article").all());
+    });
+    web.get("/api/v1/products", async (_, res) => {
+        res.json(await app.repository("product").all());
+    });
+    web.post("/api/v1/rpc/get-available-products", async (_, res) => {
+        res.json(await bus.ask(new GetAllAvailableProducts()));
+    });
+    web.post("/api/v1/rpc/sell-product", async (req, res) => {
+        const { product_id, amount } = req.body; // TODO: add parameter's validations
+        await bus.tell(new SellProduct(product_id, amount));
+        res.sendStatus(204);
+    });
+    web.use((_, res) => {
+        res.sendStatus(404);
+    });
+    const server = web.listen(PORT, () => {
+        console.info(`Listening at http://localhost:${PORT} ...`);
+        process.on("beforeExit", () => server.close());
+    });
+};
+main().catch((e) => console.error(e));
