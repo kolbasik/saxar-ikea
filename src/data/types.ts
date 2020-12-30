@@ -7,6 +7,7 @@ export type Article = {
     article_id: string;
     name: string;
     stock: number;
+    used_in_products: string[];
 };
 
 export type Product = {

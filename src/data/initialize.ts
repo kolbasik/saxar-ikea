@@ -25,6 +25,7 @@ export const initializeFromDir = async (dirPath: string, app: AppContext): Promi
                 article_id: article.art_id,
                 name: article.name,
                 stock: +article.stock,
+                used_in_products: []
             });
         }
     } catch (error) {
@@ -53,7 +54,18 @@ export const initializeFromDir = async (dirPath: string, app: AppContext): Promi
                     amount_of: +it.amount_of
                 }))
             });
+            await Promise.all(
+                product.contain_articles.map(async (it) => {
+                    const article = await articles.get(it.art_id);
+                    if (article) {
+                        article.used_in_products.push(product_id);
+                        await articles.set(article.article_id, article);
+                    } else {
+                        console.warn(`No ${it.art_id} article for ${product_id} product.`);
                     }
+                })
+            );
+        }
     } catch (error) {
         throw new Error(`Unable to load products. ${error}`);
     }

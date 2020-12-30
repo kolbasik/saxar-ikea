@@ -4,7 +4,9 @@ import { NodeBus, ConsoleBusDecorator } from "./cqrs";
 import {
     RecalculateAllProductsAvailability,
     RecalculateProductsAvailability,
-    GetAllAvailableProducts
+    GetAllAvailableProducts,
+    SellProduct,
+    ProductSold
 } from "./actions";
 import { initializeFromDir } from "./data/initialize";
 import {
@@ -12,6 +14,7 @@ import {
     createRecalculateProductsAvailabilityHandler
 } from "./actions/recalculate-products-availability";
 import { createGetAllAvailableProductsHandler } from "./actions/get-all-available-products";
+import { createSellProductHandler, createAdjustInventoryHandler } from "./actions/sell-products";
 
 const bus = new NodeBus();
 const dynamodb: DynamoDB = {};
@@ -27,6 +30,8 @@ const app: AppContext = {
 bus.consume(RecalculateAllProductsAvailability, createRecalculateAllProductsAvailabilityHandler(app));
 bus.consume(RecalculateProductsAvailability, createRecalculateProductsAvailabilityHandler(app));
 bus.consume(GetAllAvailableProducts, createGetAllAvailableProductsHandler(app));
+bus.consume(SellProduct, createSellProductHandler(app));
+bus.consume(ProductSold, createAdjustInventoryHandler(app));
 
 initializeFromDir("./specifications", app)
     .then(async () => {
@@ -35,14 +40,20 @@ initializeFromDir("./specifications", app)
         console.groupEnd();
 
         console.group("Recalculate availability...");
-        bus.tell(new RecalculateAllProductsAvailability());
+        app.bus.tell(new RecalculateAllProductsAvailability());
         await new Promise((resolve) => setTimeout(resolve, 2000));
         console.dir(dynamodb, { depth: 4 });
         console.groupEnd();
 
         console.group("Get all available products...");
-        const availableProducts = await bus.ask(new GetAllAvailableProducts());
+        const availableProducts = await app.bus.ask(new GetAllAvailableProducts());
         console.dir(availableProducts);
+        console.groupEnd();
+
+        console.group("Sell one any first product...");
+        app.bus.tell(new SellProduct(availableProducts[0].product_id, 2));
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        console.dir(dynamodb, { depth: 4 });
         console.groupEnd();
         return;
     })
