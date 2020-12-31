@@ -1,5 +1,6 @@
 import express from "express";
 import morgan from "morgan";
+import { serve as swaggerUi, setup as swaggerDoc } from "swagger-ui-express";
 import { AppContext, Repository, ResourceMap } from "./context";
 import { DynamoDB, DynamoTable } from "./data/database";
 import { NodeBus, ConsoleBusDecorator } from "./cqrs";
@@ -62,6 +63,134 @@ const main = async () => {
         await bus.tell(new SellProduct(product_id, amount));
         res.sendStatus(204);
     });
+    // TODO: generate definitions automatically
+    web.use(
+        "/api-docs",
+        swaggerUi,
+        swaggerDoc({
+            swagger: "2.0",
+            info: {
+                version: "v1",
+                title: "Warehouse"
+            },
+            definitions: {
+                Article: {
+                    type: "object",
+                    properties: {
+                        article_id: { type: "string" },
+                        name: { type: "string" },
+                        stock: { type: "number" },
+                        used_in_products: {
+                            type: "array",
+                            items: {
+                                type: "string"
+                            }
+                        }
+                    }
+                },
+                Product: {
+                    type: "object",
+                    properties: {
+                        product_id: { type: "string" },
+                        name: { type: "string" },
+                        price: {
+                            type: "object",
+                            properties: {
+                                value: { type: "number" },
+                                currency: { type: "string" }
+                            }
+                        },
+                        available_amount: { type: "number" },
+                        contain_articles: {
+                            type: "array",
+                            items: {
+                                type: "object",
+                                properties: {
+                                    article_id: { type: "string" },
+                                    amount_of: { type: "number" }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            paths: {
+                "/api/v1/articles": {
+                    get: {
+                        operationId: "Articles_GET",
+                        tags: ["Articles"],
+                        produces: ["application/json"],
+                        responses: {
+                            "200": {
+                                description: "OK",
+                                schema: {
+                                    type: "array",
+                                    items: { $ref: "#/definitions/Article" }
+                                }
+                            }
+                        }
+                    }
+                },
+                "/api/v1/products": {
+                    get: {
+                        operationId: "Products_GET",
+                        tags: ["Products"],
+                        produces: ["application/json"],
+                        responses: {
+                            "200": {
+                                description: "OK",
+                                schema: {
+                                    type: "array",
+                                    items: { $ref: "#/definitions/Product" }
+                                }
+                            }
+                        }
+                    }
+                },
+                "/api/v1/rpc/get-available-products": {
+                    post: {
+                        operationId: "RPC_GetAvailableProducts",
+                        tags: ["RPC"],
+                        produces: ["application/json"],
+                        responses: {
+                            "200": {
+                                description: "OK",
+                                schema: {
+                                    type: "array",
+                                    items: { $ref: "#/definitions/Product" }
+                                }
+                            }
+                        }
+                    }
+                },
+                "/api/v1/rpc/sell-product": {
+                    post: {
+                        operationId: "RPC_SellProduct",
+                        tags: ["RPC"],
+                        consumes: ["application/json"],
+                        produces: ["application/json"],
+                        parameters: [
+                            {
+                                name: "command",
+                                in: "body",
+                                required: true,
+                                schema: {
+                                    type: "object",
+                                    properties: {
+                                        "product_id": { type: "string" },
+                                        "amount": { type: "number" }
+                                    }
+                                }
+                            }
+                        ],
+                        responses: {
+                            "204": { description: "No Content" }
+                        }
+                    }
+                }
+            }
+        })
+    );
     web.use((_, res) => {
         res.sendStatus(404);
     });
