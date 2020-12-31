@@ -49,6 +49,7 @@ const main = async () => {
     web.use(express.json()); // eslint-disable-line import/no-named-as-default-member
     web.use(express.urlencoded({ extended: true })); // eslint-disable-line import/no-named-as-default-member
     web.use(morgan(IS_DEVELOPMENT ? "dev" : "combined"));
+    web.head("/", (_, res) => res.sendStatus(204));
     web.get("/api/v1/articles", async (_, res) => {
         res.json(await app.repository("article").all());
     });

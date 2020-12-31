@@ -7,7 +7,10 @@
     "start": "yarn build && yarn test && yarn serve",
     "serve": "ts-node ./src",
     "build": "tsc --pretty --noEmit",
-    "test": "mocha src/**/*.spec.ts"
+    "test": "yarn test:unit && yarn test:integration",
+    "test:unit": "mocha src/**/*.spec.ts",
+    "test:integration": "start-server-and-test serve http://localhost:3000 test:integration:run",
+    "test:integration:run": "mocha integration/**/*.spec.ts"
   },
   "engines": {
     "yarn": ">=1.22.0",
@@ -19,6 +22,7 @@
     "@types/mocha": "8.2.0",
     "@types/morgan": "1.9.2",
     "@types/node": "14.14.13",
+    "@types/node-fetch": "2.5.7",
     "@types/swagger-ui-express": "4.1.2",
     "@types/uuid": "8.3.0",
     "@typescript-eslint/eslint-plugin": "4.9.1",
@@ -33,7 +37,9 @@
     "express": "4.17.1",
     "mocha": "8.2.1",
     "morgan": "1.10.0",
+    "node-fetch": "2.6.1",
     "prettier": "2.2.1",
+    "start-server-and-test": "1.11.7",
     "swagger-ui-express": "4.1.6",
     "ts-node": "9.1.1",
     "typescript": "4.1.3",
